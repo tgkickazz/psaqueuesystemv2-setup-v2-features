@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Logs and local data
+log/
+*.log
+npm-debug.log*
+
+# Secrets and local config (never commit)
+.env
+.env.*
+!.env.example
+credentials.json
+
+# Archives / temp
+public.7z
+*.7z
+temp_log_inspect.js
+*.tmp
+*.bak
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Optional: local user dumps (uncomment if these hold real accounts)
+# users.json
+# roles.json
