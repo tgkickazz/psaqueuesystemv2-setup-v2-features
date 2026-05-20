@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        <title>PSA Professional Queue Display</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+        <style>
+            :root {
+                --psa-blue: #0445c7;
+                --psa-gold: #fcd116;
+                --priority-green: #28a745;
+                --dark-bg: #f7f7f7;
+            }
+
+            body, html {
+                height: 100%;
+                margin: 0;
+                overflow: hidden;
+                background-color: var(--dark-bg);
+                font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+                color: white;
+            }
+
+            /* Background Graphics */
+            .landscape-wrapper {
+                height: 100vh;
+                display: flex;
+                flex-direction: column;
+                padding: 15px;
+                background: linear-gradient(135deg, rgba(176, 174, 174, 0.593), rgba(84, 159, 244, 0.5)), url('./res/PSA-BG.png') left center / cover fixed; 
+            }
+
+            /* Header Area */
+            .main-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 5px 20px;
+                margin-bottom: 10px;
+                background: rgba(30, 41, 59, 0.5) !important;
+                backdrop-filter: blur(14px) saturate(120%);  
+                -webkit-backdrop-filter: blur(14px) saturate(120%);
+                border-radius: 75px;
+                padding: 10px;
+                box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+                border: 1px solid rgba(255, 255, 255, 0.15) !important; 
+                color: #f8fafc !important;
+                text-align: center;
+            }
+            .main-header h2 {
+                font-size: 2.5rem;
+                font-weight: 900;
+                line-height: 1;
+                
+            }
+            .main-header h6 {
+                font-size: 1.2rem;
+                font-weight: 800;
+                line-height: 1;
+
+            }
+
+            .clock-display {
+                font-family: 'arial', sans-serif;
+                font-size: 2rem;
+                font-weight: 850;
+                color: rgba(255, 255, 255, 0.767);
+                padding-right: 10px;
+            }
+
+            /* Service Section */
+            .service-row {
+                flex: 1;
+                display: flex;
+                gap: 20px;
+                margin-bottom: 20px;
+            }
+
+            /* Panel Styling */
+            .glass-panel {
+                background: rgba(53, 46, 46, 0.566);
+                backdrop-filter: blur(15px);
+                border: 1px solid rgb(0, 0, 0);
+                border-radius: 20px;
+                display: flex;
+                flex-direction: column;
+            }
+
+            .serving-main { flex: 3; padding: 20px; }
+            .waiting-sidebar { flex: 1px; padding: 20px; background: rgba(0, 0, 0, 0.3); }
+
+            /* Typography */
+            .dept-tag {
+                font-size: 1.2rem;
+                font-weight: 800;
+                letter-spacing: 2px;
+                text-transform: uppercase;
+                padding: 5px 15px;
+                border-radius: 8px;
+                display: inline-block;
+                margin-bottom: 15px;
+            }
+            .tag-nid { background: var(--psa-blue); color: white; }
+            .tag-civ { background: var(--priority-green); color: white; }
+
+            .window-card {
+                background: rgba(61, 60, 60, 0.468);
+                border-radius: 15px;
+                padding: 15px;
+                text-align: center;
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                border-bottom: 4px solid transparent;
+            }
+            
+            .window-card.active-blue { border-color: #007bff; }
+            .window-card.active-green { border-color: var(--priority-green); }
+
+            .win-title {
+                font-size: 1rem;
+                color: rgba(255, 255, 255, 0.716);
+                text-transform: uppercase;
+                font-weight: 800;
+            }
+
+            .ticket-number {
+                font-size: 4rem;
+                font-weight: 900;
+                line-height: 1;
+                margin: 10px 0;
+                text-shadow: 0 0 30px rgba(255,255,255,0.2);
+                font-family: 'Courier New', monospace;
+            }
+
+            .active-blue .ticket-number { color: #5cb8ff; text-shadow: 0 0 20px rgba(0,123,255,0.5); }
+            .active-green .ticket-number { color: #7dff9a; text-shadow: 0 0 20px rgba(40,167,69,0.5); }
+
+            /* Waiting List Items */
+            .waiting-header {
+                font-size: 1rem;
+                font-weight: 800;
+                color: rgba(255, 255, 255, 0.999);
+                border-bottom: 1px solid rgba(255,255,255,0.1);
+                padding-bottom: 10px;
+                margin-bottom: 15px;
+            }
+
+            .token-container {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+
+            .token-pill {
+                background: rgba(255,255,255,0.1);
+                padding: 8px 15px;
+                border-radius: 10px;
+                font-weight: 800;
+                font-size: 1.3rem;
+                border: 1px solid rgba(255,255,255,0.1);
+                display: inline-flex;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 6px;
+            }
+
+            .token-pill.prio {
+                color: #7dff9a;
+                border-color: rgba(40,167,69,0.4);
+            }
+
+            .requeue-timer {
+                font-size: 0.95rem;
+                font-weight: 700;
+                color: #ffeb3b;
+                background: rgba(0, 0, 0, 0.15);
+                border-radius: 8px;
+                padding: 2px 8px;
+            }
+
+            /* Animation for a new number */
+            @keyframes pulse-new {
+                0% { transform: scale(1); }
+                50% { transform: scale(1.05); }
+                100% { transform: scale(1); }
+            }
+            .new-call { animation: pulse-new 1s infinite; }
+
+        </style>
+    </head>
+
+    <body>
+            <div class="landscape-wrapper">
+                <div class="main-header">
+                    <img src="/res/PSA.png" alt="PSA Logo" height="100" class="mb-1" margin-left="55px">
+                <div style="display: flex; align-items: flex-end; gap: 15px;">
+            
+                <div style="display: flex; flex-direction: column;">
+                    <h2 style="color: var(--psa-gold); margin: 0;">
+                        <span style="color: rgb(41, 55, 255)">Philippine Statistics Authority</span> Queue
+                    </h2>
+                    <h6 style="color: rgba(255, 255, 255, 0.767); margin: 0; ">
+                        Serving you better, one ticket at a time
+                    </h6>
+                </div>
+                
+            </div>
+            <div>
+                <div class="clock-display" id="realtime-clock">00:00:00 PM</div>
+                <div class="clock-display" id="realtime-date" style="font-size: 1.1rem; margin-top: 0.2rem;">Loading date...</div>
+            </div></div>
+
+            <div class="service-row">
+                <div class="glass-panel serving-main">
+                    <div class="dept-tag tag-nid">National ID</div>
+                    <div class="d-flex gap-3 h-100" style="gap: 10px;">
+                        <div class="window-card active-blue">
+                            <div class="win-title"><i class="fas fa-bullhorn mr-2"></i> Window 1</div>
+                            <div class="ticket-number" id="nid-w1">---</div>
+                        </div>
+                        <div class="window-card active-blue">
+                            <div class="win-title"><i class="fas fa-bullhorn mr-2"></i> Window 2</div>
+                            <div class="ticket-number" id="nid-w2">---</div>
+                        </div>
+                        <div class="window-card active-green">
+                            <div class="win-title text-success"><i class="fas fa-star mr-2"></i> Priority</div>
+                            <div class="ticket-number" id="nid-prio">---</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="glass-panel waiting-sidebar">
+                    <div class="waiting-header">National ID Waiting Queue</div>
+                    <div class="token-container" id="wait-nid"></div>
+                    <div class="waiting-header" style="margin-top: 10px;">Requeued Tickets</div>
+                    <div id="requeue-nid"></div>
+                </div>
+            </div>
+
+            <div class="service-row">
+                <div class="glass-panel serving-main">
+                    <div class="dept-tag tag-civ">Civil Registration</div>
+                    <div class="d-flex gap-3 h-100" style="gap: 20px;">
+                        <div class="window-card active-blue">
+                            <div class="win-title"><i class="fas fa-bullhorn mr-2"></i> Civil Registration Window</div>
+                            <div class="ticket-number" id="civ-window">---</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="glass-panel waiting-sidebar">
+                    <div class="waiting-header">Civil Registration Waiting Queue</div>
+                    <div class="token-container" id="wait-civ"></div>
+                    
+                    <div class="waiting-header" style="margin-top: 10px;">Requeued Tickets</div>
+                    <div id="requeue-civ"></div>
+                </div>
+            </div>
+        </div>
+
+        <script src="/socket.io/socket.io.js"></script>
+        <script>
+            const socket = io();
+
+            function updateTime() {
+                const now = new Date();
+                document.getElementById('realtime-clock').innerText = now.toLocaleTimeString();
+                document.getElementById('realtime-date').innerText = now.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            }
+            setInterval(updateTime, 1000);
+
+            function renderQueueState(state) {
+                const serving = state?.currentServing || {};
+                const waiting = state?.waitingQueue || { national: [], civil: [] };
+
+                updateNumber('nid-w1', serving.national?.window1?.label);
+                updateNumber('nid-w2', serving.national?.window2?.label);
+                updateNumber('nid-prio', serving.national?.priorityWindow?.label);
+                updateNumber('civ-window', serving.civil?.window1?.label);
+
+                const nationalQueueLimited = waiting.national.slice(0, 4);
+                const civilQueueLimited = waiting.civil.slice(0, 4);
+                renderWait('wait-nid', nationalQueueLimited, waiting.national.length);
+                renderWait('wait-civ', civilQueueLimited, waiting.civil.length);
+                renderRequeueList('requeue-nid', waiting.national.filter(t => t.requeueTime));
+                renderRequeueList('requeue-civ', waiting.civil.filter(t => t.requeueTime));
+            }
+
+
+
+
+
+
+            function updateNumber(id, val) {
+                const el = document.getElementById(id);
+                const newVal = val || '---';
+                if (el.innerText !== newVal && newVal !== '---') {
+                    el.classList.add('new-call');
+                    setTimeout(() => el.classList.remove('new-call'), 5000);
+                }
+                el.innerText = newVal;
+            }
+
+            function formatTimeRemaining(ms) {
+                if (ms <= 0) return 'Expired';
+                const totalSeconds = Math.floor(ms / 1000);
+                const mins = Math.floor(totalSeconds / 60);
+                const secs = totalSeconds % 60;
+                return `${mins}:${secs.toString().padStart(2, '0')}`;
+            }
+
+            function renderWait(id, list, totalCount = 0) {
+                const container = document.getElementById(id);
+                if (!Array.isArray(list) || list.length === 0) {
+                    container.innerHTML = '<div class="token-pill">No pending tickets</div>';
+                    return;
+                }
+
+                container.innerHTML = list.map(t => 
+                    `<div class="token-pill ${t.isPriority ? 'prio' : ''}">${t.label}</div>`
+                ).join('');
+
+                if (totalCount > list.length) {
+                    const moreCount = totalCount - list.length;
+                    container.innerHTML += `<div class="token-pill">+${moreCount} more waiting</div>`;
+                }
+            }
+
+            function renderRequeueList(id, list) {
+                const container = document.getElementById(id);
+                if (!Array.isArray(list) || list.length === 0) {
+                    container.innerHTML = '<div class="token-pill">No requeued tickets</div>';
+                    return;
+                }
+
+                container.innerHTML = list.map(t => {
+                    const remaining = formatTimeRemaining(600000 - (Date.now() - Number(t.requeueTime)));
+                    return `
+                        <div class="token-pill ${t.isPriority ? 'prio' : ''}">
+                            <span>${t.label}</span>
+                            <span class="requeue-timer" data-requeue-time="${t.requeueTime}">${remaining}</span>
+                        </div>`;
+                }).join('');
+            }
+
+            function updateRequeueTimers() {
+                document.querySelectorAll('.requeue-timer').forEach(el => {
+                    const requeueTime = Number(el.dataset.requeueTime);
+                    const remaining = formatTimeRemaining(600000 - (Date.now() - requeueTime));
+                    el.innerText = remaining;
+                });
+            }
+
+            setInterval(updateRequeueTimers, 1000);
+
+            socket.on('queue_update', renderQueueState);
+            socket.on('connect', () => socket.emit('request_queue_update'));
+
+            updateTime();
+        </script>
+
+    </body>
+</html>
