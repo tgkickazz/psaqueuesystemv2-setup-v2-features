@@ -26,3 +26,7 @@ GitHub does **not** compute a project percentage. The “40% / 75%” lines next
 ## How to update this file
 
 When a milestone is finished, change the table numbers and add a dated bullet under “What’s in good shape” or “Gaps”. Prefer **one commit per real feature/fix** with a clear message instead of “% progress” in every commit.
+
+## Repo maintenance (2026-05)
+
+- Root `.gitignore` should exclude `node_modules/`, `log/`, secrets, and archives. If those were ever committed, remove them from the index (`git rm -r --cached …`) and push; **rotate any leaked credentials** — old blobs may still exist in Git history until scrubbed or the repo is recreated.

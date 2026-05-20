@@ -27,3 +27,6 @@ Thumbs.db
 # Optional: local user dumps (uncomment if these hold real accounts)
 # users.json
 # roles.json
+
+# One-time helper (optional; do not commit)
+cleanup-repo-and-push.ps1
