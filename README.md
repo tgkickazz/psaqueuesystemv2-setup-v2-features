@@ -15,13 +15,23 @@ npm start
 
 Or double-click **`start_app.bat`** (runs `npm install` if needed, then starts the server).
 
-## URLs
+## URLs (replace with your PC IP for phones / Messenger, e.g. `192.168.0.105`)
 
-| Page | URL |
-|------|-----|
-| Login | http://localhost:3000/login.html |
-| Kiosk | http://localhost:3000/getTicketNumberV2.html |
-| Public display | http://localhost:3000/queue_Status.html |
+| Page | Path |
+|------|------|
+| **Home (all 3 links)** | `/home.html` or `/` |
+| Staff login | `/login.html` |
+| Kiosk (get ticket) | `/getTicketNumberV2.html` |
+| Public queue display | `/queue_Status.html` |
+
+Example on your network:
+
+- http://192.168.0.105:3000/home.html  
+- http://192.168.0.105:3000/login.html  
+- http://192.168.0.105:3000/getTicketNumberV2.html  
+- http://192.168.0.105:3000/queue_Status.html  
+
+Links shared in **Messenger/Facebook** work the same (the `fbclid` parameter is removed automatically).
 
 ## Login (Firebase)
 

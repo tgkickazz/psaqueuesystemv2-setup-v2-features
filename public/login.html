@@ -148,6 +148,14 @@
         <p>We provide statistics, civil registration, and identification services for sustainable, innovative, and inclusive development.</p>
     </div>
 
+    <script>
+        (function () {
+            if (!location.search.includes('fbclid=')) return;
+            const u = new URL(location.href);
+            u.searchParams.delete('fbclid');
+            history.replaceState({}, '', u.pathname + (u.search || ''));
+        })();
+    </script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
         import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, signOut } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";

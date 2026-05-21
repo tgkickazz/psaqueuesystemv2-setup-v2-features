@@ -260,6 +260,14 @@
             </div>
         </div>
 
+        <script>
+            (function () {
+                if (!location.search.includes('fbclid=')) return;
+                const u = new URL(location.href);
+                u.searchParams.delete('fbclid');
+                history.replaceState({}, '', u.pathname + (u.search || ''));
+            })();
+        </script>
         <script src="/socket.io/socket.io.js"></script>
         <script>
             const socket = io();

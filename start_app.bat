@@ -41,6 +41,6 @@ timeout /t 2 /nobreak >nul
 
 echo Opening Chrome...
 :: 3. Open Chrome in full screen to the specific address
-start chrome --start-fullscreen "http://%IP%:3000/login.html"
+start chrome --start-fullscreen "http://%IP%:3000/home.html"
 
 exit

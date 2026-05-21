@@ -124,7 +124,7 @@ connectDB();
 app.use(express.json());
 
 app.get('/', (req, res) => {
-    res.redirect('/login.html');
+    res.sendFile(path.join(__dirname, 'public', 'home.html'));
 });
 
 // --- SECURE ROUTING FOR STATISTICS DASHBOARD ---
@@ -680,7 +680,9 @@ server.listen(PORT, HOST, () => {
         .filter((iface) => iface && iface.family === 'IPv4' && !iface.internal)
         .map((iface) => iface.address)[0] || 'localhost';
 
-    console.log(`🚀 PSA Unified System Online: http://${localIp}:${PORT}/login.html`);
-    console.log(`Kiosk: http://${localIp}:${PORT}/getTicketNumberV2.html`)
-    console.log(`Public Display: http://${localIp}:${PORT}/queue_Status.html`);
+    const base = `http://${localIp}:${PORT}`;
+    console.log(`🚀 PSA Unified System Online: ${base}/home.html`);
+    console.log(`   Staff Login:     ${base}/login.html`);
+    console.log(`   Kiosk:           ${base}/getTicketNumberV2.html`);
+    console.log(`   Public Display:  ${base}/queue_Status.html`);
 });
