@@ -4,6 +4,16 @@ setlocal enabledelayedexpansion
 :: Ensure the script runs in the same directory as the batch file
 cd /d "%~dp0"
 
+if not exist "node_modules\dotenv\package.json" (
+    echo Installing Node.js dependencies...
+    call npm install
+    if errorlevel 1 (
+        echo npm install failed. Install Node.js 18+ from https://nodejs.org then run this file again.
+        pause
+        exit /b 1
+    )
+)
+
 echo Starting the server...
 :: 1. Start server.js in a new minimized command prompt window
 start "Node Server" /min node server.js

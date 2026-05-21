@@ -13,6 +13,8 @@
   "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "setup": "npm install",
+    "prestart": "node -e \"require('dotenv')\"",
     "start": "node server.js"
   },
   "engines": {
