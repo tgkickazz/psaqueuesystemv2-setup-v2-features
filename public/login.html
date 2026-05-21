@@ -309,16 +309,37 @@
             }
         }
 
+        function mapAuthError(error) {
+            const code = error?.code || '';
+            if (code === 'auth/user-not-found' || code === 'auth/invalid-credential' || code === 'auth/invalid-login-credentials') {
+                return 'No account found or wrong password. Use System Registration to create an account first.';
+            }
+            if (code === 'auth/wrong-password') return 'Incorrect password.';
+            if (code === 'auth/invalid-email') return 'Please enter a valid email address.';
+            if (code === 'auth/too-many-requests') return 'Too many attempts. Please wait a few minutes.';
+            if (code === 'auth/network-request-failed') return 'Network error. Check connection and try again.';
+            const msg = (error?.message || 'Login failed.').replace(/^Firebase:\s*/i, '').replace(/\s*\(auth\/[^)]+\)\.?\s*$/i, '').trim();
+            return msg || 'Login failed.';
+        }
+
         async function claimSessionForUser(email) {
             const sessionId = crypto.randomUUID();
             localStorage.setItem('psa_session_id', sessionId);
-            const response = await fetch('/api/claim-session', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: normalizeEmailForSession(email), sessionId })
-            });
-            if (!response.ok) throw new Error('Could not start secure session');
-            return response.json();
+            try {
+                const response = await fetch('/api/claim-session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: normalizeEmailForSession(email), sessionId })
+                });
+                if (!response.ok) {
+                    console.warn('claim-session failed', response.status);
+                    return { success: false };
+                }
+                return await response.json();
+            } catch (err) {
+                console.warn('claim-session error', err);
+                return { success: false };
+            }
         }
 
         async function attemptLogin() {
@@ -329,10 +350,12 @@
             if (!email || !pass) return status.innerText = "Please fill in all fields.";
             if (!isValidEmail(email)) return status.innerText = "Please enter a valid email address.";
 
+            const loginEmail = normalizeEmailForSession(email);
+
             btnLogin.disabled = true;
             status.innerText = '';
             try {
-                const hasOtherSession = await checkHasActiveSession(email);
+                const hasOtherSession = await checkHasActiveSession(loginEmail);
                 if (hasOtherSession) {
                     const proceed = confirm(
                         'This account is already signed in on another device.\n\n' +
@@ -344,9 +367,20 @@
                     }
                 }
 
-                const userCredential = await signInWithEmailAndPassword(auth, email, pass);
+                let userCredential;
+                try {
+                    userCredential = await signInWithEmailAndPassword(auth, loginEmail, pass);
+                } catch (authError) {
+                    status.innerText = mapAuthError(authError);
+                    return;
+                }
+
                 const userEmail = userCredential.user.email;
-                const response = await fetch('/api/get-role', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: userEmail }) });
+                const response = await fetch('/api/get-role', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: userEmail })
+                });
                 if (!response.ok) {
                     await signOut(auth);
                     status.innerText = "Cannot reach server. Start the app (node server.js) and try again.";
@@ -371,8 +405,10 @@
                 } else {
                     window.location.href = 'queue-control.html';
                 }
-            } catch {
-                status.innerText = "Invalid email or password.";
+            } catch (error) {
+                console.error('Login error:', error);
+                try { await signOut(auth); } catch (_) {}
+                status.innerText = error?.message || 'Login failed. Please try again.';
             } finally {
                 btnLogin.disabled = false;
             }

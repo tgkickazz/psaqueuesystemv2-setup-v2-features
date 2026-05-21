@@ -2,6 +2,7 @@ require('dotenv').config();
 
 const express = require('express');
 const path = require('path');
+const fs = require('fs');
 const http = require('http');
 const os = require('os');
 const { Server } = require('socket.io');
@@ -114,6 +115,7 @@ async function connectDB() {
                 loginAt: row.loginAt ? new Date(row.loginAt) : new Date()
             };
         }
+        await syncRolesFromFile();
         console.log("✅ Connected to MongoDB Atlas: Archive & History Ready");
     } catch (e) { console.error("❌ DB Failed:", e.message); process.exit(1); }
 }
@@ -138,12 +140,50 @@ function normalizeEmail(email) {
     return String(email || '').trim().toLowerCase();
 }
 
+function getRoleFromRolesFile(email) {
+    try {
+        const rolesPath = path.join(__dirname, 'roles.json');
+        if (!fs.existsSync(rolesPath)) return null;
+        const roles = JSON.parse(fs.readFileSync(rolesPath, 'utf8'));
+        const normalized = normalizeEmail(email);
+        return roles[normalized] || roles[email] || null;
+    } catch {
+        return null;
+    }
+}
+
 async function findRoleByEmail(email) {
     const normalized = normalizeEmail(email);
-    if (!normalized) return null;
+    if (!normalized || !db) return null;
     return db.collection('roles').findOne({
         $expr: { $eq: [{ $toLower: '$email' }, normalized] }
     });
+}
+
+async function resolveRole(email) {
+    const user = await findRoleByEmail(email);
+    if (user?.role) return user.role;
+    return getRoleFromRolesFile(email) || 'controller';
+}
+
+async function syncRolesFromFile() {
+    if (!db) return;
+    try {
+        const rolesPath = path.join(__dirname, 'roles.json');
+        if (!fs.existsSync(rolesPath)) return;
+        const roles = JSON.parse(fs.readFileSync(rolesPath, 'utf8'));
+        for (const [rawEmail, role] of Object.entries(roles)) {
+            const email = normalizeEmail(rawEmail);
+            if (!email || !role) continue;
+            const existing = await findRoleByEmail(email);
+            if (!existing) {
+                await db.collection('roles').insertOne({ email, role, updatedAt: new Date(), source: 'roles.json' });
+            }
+        }
+        console.log('📋 Roles synced from roles.json');
+    } catch (err) {
+        console.warn('roles.json sync skipped:', err.message);
+    }
 }
 
 async function persistUserSession(email, sessionId) {
@@ -172,8 +212,15 @@ function emitForceLogoutForEmail(email, exceptSessionId = null) {
 }
 
 app.post('/api/get-role', async (req, res) => {
-    const user = await findRoleByEmail(req.body.email);
-    res.json({ success: true, role: user ? user.role : 'controller' });
+    const role = await resolveRole(req.body.email);
+    res.json({ success: true, role });
+});
+
+app.post('/api/log-auth', async (req, res) => {
+    const email = normalizeEmail(req.body.email);
+    const action = req.body.action || 'AUTH';
+    await logEvent('auth_logs', { email, action, location: req.body.location || 'login' });
+    res.json({ success: true });
 });
 
 app.post('/api/session-status', (req, res) => {
