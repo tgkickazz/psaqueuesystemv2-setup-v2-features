@@ -469,6 +469,14 @@ io.on('connection', (socket) => {
         broadcastActiveUsers();
     });
 
+    socket.on('update_user_location', (location) => {
+        if (activeUsers[socket.id]) {
+            activeUsers[socket.id].location = location;
+            activeUsers[socket.id].lastSeen = new Date();
+            broadcastActiveUsers();
+        }
+    });
+
     socket.on('disconnect', () => {
         delete activeUsers[socket.id];
         broadcastActiveUsers();
