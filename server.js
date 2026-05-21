@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const express = require('express');
 const path = require('path');
 const http = require('http');
@@ -10,8 +12,12 @@ const server = http.createServer(app);
 const io = new Server(server);
 
 // --- 1. CONFIGURATION ---
-const PORT = process.env.PORT ? Number(process.env.PORT) : 3000; 
-const uri = "mongodb://deynyelicawalo_db_user:h9sM5NYNeO0R96vw@ac-bbriiqg-shard-00-00.yeogezu.mongodb.net:27017,ac-bbriiqg-shard-00-01.yeogezu.mongodb.net:27017,ac-bbriiqg-shard-00-02.yeogezu.mongodb.net:27017/?ssl=true&replicaSet=atlas-uamnqz-shard-0&authSource=admin&appName=Cluster0";
+const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
+const uri = process.env.MONGODB_URI;
+if (!uri) {
+    console.error('❌ Missing MONGODB_URI. Copy .env.example to .env (local) or set it in Render Environment.');
+    process.exit(1);
+}
 const client = new MongoClient(uri);
 
 let db;
@@ -28,6 +34,8 @@ let queueStore = {
     }
 };
 const activeUsers = {};
+/** @type {Record<string, { sessionId: string, loginAt: Date }>} */
+const activeSessionsByEmail = {};
 
 // --- 3. PERSISTENCE & LOGGING HELPERS ---
 async function logEvent(collectionName, data) {
@@ -99,6 +107,13 @@ async function connectDB() {
             ticketSequences = saved.ticketSequences || { national: 1, civil: 1 };
             console.log("🔄 Persistent State Recovered");
         }
+        const sessions = await db.collection('user_sessions').find({}).toArray();
+        for (const row of sessions) {
+            activeSessionsByEmail[row.email] = {
+                sessionId: row.sessionId,
+                loginAt: row.loginAt ? new Date(row.loginAt) : new Date()
+            };
+        }
         console.log("✅ Connected to MongoDB Atlas: Archive & History Ready");
     } catch (e) { console.error("❌ DB Failed:", e.message); process.exit(1); }
 }
@@ -119,13 +134,109 @@ app.get('/stats_Dashboard.html', async (req, res) => {
 app.use(express.static(path.join(__dirname, 'public')));
 
 // --- 5. API ROUTES ---
+function normalizeEmail(email) {
+    return String(email || '').trim().toLowerCase();
+}
+
+async function findRoleByEmail(email) {
+    const normalized = normalizeEmail(email);
+    if (!normalized) return null;
+    return db.collection('roles').findOne({
+        $expr: { $eq: [{ $toLower: '$email' }, normalized] }
+    });
+}
+
+async function persistUserSession(email, sessionId) {
+    if (!db) return;
+    await db.collection('user_sessions').updateOne(
+        { email },
+        { $set: { email, sessionId, loginAt: new Date() } },
+        { upsert: true }
+    );
+}
+
+async function clearUserSession(email, sessionId) {
+    const current = activeSessionsByEmail[email];
+    if (!current || current.sessionId !== sessionId) return;
+    delete activeSessionsByEmail[email];
+    if (db) await db.collection('user_sessions').deleteOne({ email });
+}
+
+function emitForceLogoutForEmail(email, exceptSessionId = null) {
+    const normalized = normalizeEmail(email);
+    for (const [socketId, user] of Object.entries(activeUsers)) {
+        if (normalizeEmail(user.email) !== normalized) continue;
+        if (exceptSessionId && user.sessionId === exceptSessionId) continue;
+        io.to(socketId).emit('force_logout_signal', user.email);
+    }
+}
+
 app.post('/api/get-role', async (req, res) => {
-    const user = await db.collection('roles').findOne({ email: req.body.email });
+    const user = await findRoleByEmail(req.body.email);
     res.json({ success: true, role: user ? user.role : 'controller' });
 });
 
+app.post('/api/session-status', (req, res) => {
+    const email = normalizeEmail(req.body.email);
+    res.json({ success: true, hasActiveSession: !!(email && activeSessionsByEmail[email]) });
+});
+
+app.post('/api/claim-session', async (req, res) => {
+    const email = normalizeEmail(req.body.email);
+    const sessionId = String(req.body.sessionId || '').trim();
+    if (!email || !sessionId) {
+        return res.status(400).json({ success: false, error: 'Missing email or sessionId' });
+    }
+
+    const previous = activeSessionsByEmail[email];
+    const replacedPreviousSession = !!(previous && previous.sessionId !== sessionId);
+
+    activeSessionsByEmail[email] = { sessionId, loginAt: new Date() };
+    await persistUserSession(email, sessionId);
+
+    if (replacedPreviousSession) {
+        emitForceLogoutForEmail(email, sessionId);
+    }
+
+    res.json({ success: true, replacedPreviousSession });
+});
+
+app.post('/api/check-session', (req, res) => {
+    const email = normalizeEmail(req.body.email);
+    const sessionId = String(req.body.sessionId || '').trim();
+    const current = activeSessionsByEmail[email];
+    const valid = !!(current && current.sessionId === sessionId);
+    res.json({ success: true, valid });
+});
+
+app.post('/api/release-session', async (req, res) => {
+    const email = normalizeEmail(req.body.email);
+    const sessionId = String(req.body.sessionId || '').trim();
+    await clearUserSession(email, sessionId);
+    res.json({ success: true });
+});
+
+app.post('/api/revoke-other-sessions', async (req, res) => {
+    const email = normalizeEmail(req.body.email);
+    const sessionId = String(req.body.sessionId || '').trim();
+    if (!email || !sessionId) {
+        return res.status(400).json({ success: false, error: 'Missing email or sessionId' });
+    }
+    activeSessionsByEmail[email] = { sessionId, loginAt: new Date() };
+    await persistUserSession(email, sessionId);
+    emitForceLogoutForEmail(email, sessionId);
+    res.json({ success: true });
+});
+
 app.post('/api/set-role', async (req, res) => {
-    await db.collection('roles').updateOne({ email: req.body.email }, { $set: { ...req.body, updatedAt: new Date() } }, { upsert: true });
+    const email = normalizeEmail(req.body.email);
+    const existing = await findRoleByEmail(email);
+    const payload = { ...req.body, email, updatedAt: new Date() };
+    if (existing) {
+        await db.collection('roles').updateOne({ _id: existing._id }, { $set: payload });
+    } else {
+        await db.collection('roles').insertOne(payload);
+    }
     res.json({ success: true });
 });
 
@@ -464,9 +575,34 @@ io.on('connection', (socket) => {
     });
 
     socket.on('register_active_user', async (data) => {
-        activeUsers[socket.id] = { email: data.email, role: data.role, location: data.location, lastSeen: new Date() };
+        const sessionId = data.sessionId ? String(data.sessionId) : null;
+        activeUsers[socket.id] = {
+            email: data.email,
+            role: data.role,
+            location: data.location,
+            lastSeen: new Date(),
+            sessionId
+        };
+
+        const canonical = activeSessionsByEmail[normalizeEmail(data.email)];
+        if (canonical && sessionId && canonical.sessionId !== sessionId) {
+            io.to(socket.id).emit('force_logout_signal', data.email);
+            return;
+        }
+
         await logEvent('auth_logs', { email: data.email, action: 'LOGIN', location: data.location });
         broadcastActiveUsers();
+    });
+
+    socket.on('kick_user', (email) => {
+        if (!email) return;
+        emitForceLogoutForEmail(email, null);
+    });
+
+    socket.on('user_logout', async (data) => {
+        if (data?.email && data?.sessionId) {
+            await clearUserSession(normalizeEmail(data.email), String(data.sessionId));
+        }
     });
 
     socket.on('update_user_location', (location) => {

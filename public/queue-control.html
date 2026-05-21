@@ -256,6 +256,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
         import { getAuth, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
+        import { getStoredSessionId, startSessionGuard, releaseSession } from "./session-utils.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBv0Bnx7ESj_roRTB137vWJ7KLTDXR1C8Y",
@@ -276,7 +277,12 @@
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 document.getElementById('staffEmail').innerText = user.email;
-                socket.emit('register_active_user', { email: user.email, location: 'Queue Control Menu' });
+                socket.emit('register_active_user', {
+                    email: user.email,
+                    location: 'Queue Control Menu',
+                    sessionId: getStoredSessionId()
+                });
+                startSessionGuard(auth, socket);
             } else {
                 window.location.href = "login.html";
             }
@@ -326,22 +332,6 @@
             });
         });
 
-        // --- ADMIN KICK / MULTI-LOGIN LISTENER ---
-        socket.on('force_logout_signal', (kickedEmail) => {
-            const currentUser = auth.currentUser;
-            if (currentUser && currentUser.email === kickedEmail) {
-                alert("Session Terminated: You have been logged out by an Admin or logged in from another device.");
-                signOut(auth).then(() => { 
-                    localStorage.clear(); 
-                    window.location.href = "login.html"; 
-                });
-            }
-        });
-
-
-
-
-
         // --- MANUAL LOGOUT ---
         const logoutButton = document.getElementById('btnLogout');
         if (logoutButton) {
@@ -349,16 +339,22 @@
                 e.preventDefault();
                 showConfirmModal('exit', async () => {
                     try {
+                        const email = auth.currentUser?.email;
+                        const sessionId = getStoredSessionId();
+                        if (email && sessionId) {
+                            await releaseSession(email);
+                            if (socket && socket.connected) {
+                                socket.emit('user_logout', { email, sessionId });
+                            }
+                        }
                         await signOut(auth);
                     } catch (err) {
                         console.error('Logout failed:', err);
                     } finally {
                         localStorage.removeItem('psa_admin_token');
                         localStorage.removeItem('psa_role');
-                        if (socket && socket.connected) {
-                            socket.emit('user_logout');
-                            socket.disconnect();
-                        }
+                        localStorage.removeItem('psa_session_id');
+                        if (socket && socket.connected) socket.disconnect();
                         window.location.href = 'login.html';
                     }
                 });

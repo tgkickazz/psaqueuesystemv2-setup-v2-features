@@ -4,6 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PSA Queue - Admin Dashboard</title>
+    <script>
+        (function () {
+            if (localStorage.getItem('psa_dark_mode') === 'enabled') {
+                document.documentElement.classList.add('dark-theme');
+            }
+        })();
+    </script>
+    <style id="dark-mode-guard">
+        html.dark-theme,
+        html.dark-theme body {
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.75), rgba(30, 41, 59, 0.85)),
+                url('./res/PSA-dark-bg.jpg') center / cover fixed !important;
+            background-color: #0f172a !important;
+            color: #e2e8f0 !important;
+        }
+    </style>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet" />
@@ -19,7 +35,7 @@
             --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
-        body { background: #f4f7f6; color: #1f2a3a; min-height: 100vh; background: linear-gradient(135deg, rgba(1, 61, 129, 0.25), rgba(7, 112, 233, 0.25)), url('./res/Philippine-Statistics-Authority-PSA.png') center / cover fixed; }
+        body:not(.dark-theme) { background: #f4f7f6; color: #1f2a3a; min-height: 100vh; background: linear-gradient(135deg, rgba(1, 61, 129, 0.25), rgba(7, 112, 233, 0.25)), url('./res/Philippine-Statistics-Authority-PSA.png') center / cover fixed; }
         .dashboard { display: flex; min-height: 100vh; }
         
         /* FIXED LAYOUT SHIFTS: Added transition matching sibling rules */
@@ -140,7 +156,7 @@
 
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         :root { --psa-blue: #134299; --psa-light-blue: #0d6efd; --text-dark: #1e293b; --text-muted: #475569; --bg-light: #f4f7fc; }
-        body { background-color: #ffffff; color: var(--text-dark); }
+        body:not(.dark-theme) { background-color: #ffffff; color: var(--text-dark); }
 
         /* Top Hero Layout */
 
@@ -287,17 +303,14 @@
         input:checked + .slider { background-color: #27ae60; }
         input:checked + .slider:before { transform: translateX(22px); }
         
-        .dark-theme {
+        html.dark-theme,
+        body.dark-theme {
             color: #e2e8f0 !important;
             min-height: 100vh;
             background:
                 linear-gradient(135deg, rgba(15, 23, 42, 0.75), rgba(30, 41, 59, 0.85)),
                 url('./res/PSA-dark-bg.jpg') center / cover fixed !important;
-        }
-                /* Keep table text dark on white table background */
-        .dark-theme #logsTableBody td,
-        .dark-theme #userLogsTableBody td {
-            color: #1e293b !important;
+            background-color: #0f172a !important;
         }
         /* ===== Added: Admin Dark Mode UI polish (excluding About Us) ===== */
         .dark-theme .online-users-card,
@@ -333,17 +346,39 @@
         color: #e2e8f0 !important;
         }
         .dark-theme thead th {
-        background: rgba(30, 64, 175, 0.68) !important;
+        background: #1e40af !important;
         color: #eaf2ff !important;
         border-bottom: 1px solid rgba(148, 163, 184, 0.35) !important;
+        }
+        /* Log tables: solid sticky headers (no see-through while scrolling) */
+        .dark-theme .logs-table-scroll {
+            background: #0f172a !important;
+            border-color: rgba(148, 163, 184, 0.25) !important;
+        }
+        .dark-theme .logs-table-scroll thead th {
+            background: #1e40af !important;
+            color: #eaf2ff !important;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.35);
+        }
+        .dark-theme .logs-table-scroll--user thead th {
+            background: #166534 !important;
         }
         .dark-theme tbody td {
         background: transparent !important;
         color: #e2e8f0 !important;
         border-bottom: 1px solid rgba(148, 163, 184, 0.18) !important;
         }
+        .dark-theme #logsTableBody td,
+        .dark-theme #userLogsTableBody td {
+            color: #e2e8f0 !important;
+            background: rgba(15, 23, 42, 0.55) !important;
+        }
         .dark-theme tbody tr:hover td {
         background: rgba(30, 41, 59, 0.65) !important;
+        }
+        .dark-theme #logsTableBody tr:hover td,
+        .dark-theme #userLogsTableBody tr:hover td {
+            background: rgba(30, 41, 59, 0.85) !important;
         }
         /* inputs and date picker */
         .dark-theme input,
@@ -482,6 +517,11 @@
 
 </head>
 <body>
+    <script>
+        if (localStorage.getItem('psa_dark_mode') === 'enabled') {
+            document.body.classList.add('dark-theme');
+        }
+    </script>
     <div class="dashboard">
         <nav class="sidebar" id="sidebar">
             <div class="sidebar-header">
@@ -581,7 +621,7 @@
                             </div>
                         </div>
                         
-                        <div style="overflow-x: auto; overflow-y: auto; max-height: 400px; background: #fff; border-radius: 8px; border: 1px solid #e2e8f0;">
+                        <div class="logs-table-scroll" style="overflow-x: auto; overflow-y: auto; max-height: 400px; background: #fff; border-radius: 8px; border: 1px solid #e2e8f0;">
                             <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem;">
                                 <thead>
                                     <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0;">
@@ -632,7 +672,7 @@
                             </div>
                         </div>
                         
-                        <div style="overflow-x: auto; overflow-y: auto; max-height: 400px; background: #fff; border-radius: 8px; border: 1px solid #e2e8f0;">
+                        <div class="logs-table-scroll logs-table-scroll--user" style="overflow-x: auto; overflow-y: auto; max-height: 400px; background: #fff; border-radius: 8px; border: 1px solid #e2e8f0;">
                             <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem;">
                                 <thead>
                                     <tr style="border-bottom: 2px solid #e2e8f0;">
@@ -941,6 +981,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
         import { getAuth, signOut, onAuthStateChanged, updateEmail, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
+        import { getStoredSessionId, startSessionGuard, releaseSession } from "./session-utils.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBv0Bnx7ESj_roRTB137vWJ7KLTDXR1C8Y",
@@ -956,26 +997,41 @@
         const socket = io();
         
         onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                document.getElementById('adminEmailDisplay').innerText = `Admin: ${user.email}`;
-                socket.emit('register_active_user', { email: user.email, location: 'Admin Dashboard - Home' });
-                
-                const response = await fetch('/api/get-role', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: user.email }) });
-                const data = await response.json();
-                if (data.role !== 'admin') { alert("Unauthorized."); signOut(auth); window.location.href = "login.html"; }
-            } else {
+            if (!user) {
                 window.location.href = "login.html";
+                return;
             }
-        });
 
-        socket.on('force_logout_signal', (kickedEmail) => {
-            const currentUser = auth.currentUser;
-            if (currentUser && currentUser.email === kickedEmail) {
-                alert("Session Terminated: You logged in from another device.");
-                signOut(auth).then(() => { 
-                    localStorage.clear(); 
-                    window.location.href = "login.html"; 
-                });
+            document.getElementById('adminEmailDisplay').innerText = `Admin: ${user.email}`;
+            socket.emit('register_active_user', {
+                email: user.email,
+                location: 'Admin Dashboard - Home',
+                sessionId: getStoredSessionId()
+            });
+            startSessionGuard(auth, socket);
+
+            try {
+                const response = await fetch('/api/get-role', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: user.email }) });
+                if (!response.ok) throw new Error('Role check failed');
+                const data = await response.json();
+
+                if (data.role === 'banned') {
+                    alert("This account has been removed by an Admin.");
+                    await signOut(auth);
+                    window.location.href = "login.html";
+                    return;
+                }
+                if (data.role !== 'admin') {
+                    alert("This account is not an admin. Log in as Queue Staff, or ask an admin to set your role to admin.");
+                    await signOut(auth);
+                    window.location.href = "login.html";
+                    return;
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Could not verify admin access. Make sure the server is running (node server.js), then log in again.");
+                await signOut(auth);
+                window.location.href = "login.html";
             }
         });
 
@@ -1542,19 +1598,18 @@
 
         // --- SETTINGS MENU LOGIC ---
         const darkModeToggle = document.getElementById('darkModeToggle');
+        function setDarkMode(enabled) {
+            document.documentElement.classList.toggle('dark-theme', enabled);
+            document.body.classList.toggle('dark-theme', enabled);
+        }
         if (localStorage.getItem('psa_dark_mode') === 'enabled') {
             darkModeToggle.checked = true;
-            document.body.classList.add('dark-theme');
+            setDarkMode(true);
         }
         
         darkModeToggle.addEventListener('change', function(e) {
-            if (e.target.checked) {
-                document.body.classList.add('dark-theme');
-                localStorage.setItem('psa_dark_mode', 'enabled');
-            } else {
-                document.body.classList.remove('dark-theme');
-                localStorage.setItem('psa_dark_mode', 'disabled');
-            }
+            setDarkMode(e.target.checked);
+            localStorage.setItem('psa_dark_mode', e.target.checked ? 'enabled' : 'disabled');
         });
 
         const notificationsToggle = document.getElementById('notificationsToggle');
@@ -1697,18 +1752,43 @@
 
         document.getElementById('btnCancelPrivacy').addEventListener('click', () => privacyModal.classList.remove('active'));
 
-        document.getElementById('btnSignOutOtherDevices').addEventListener('click', () => {
+        document.getElementById('btnSignOutOtherDevices').addEventListener('click', async () => {
             const statusEl = document.getElementById('privacyStatus');
-            statusEl.style.color = '#27ae60';
-            statusEl.innerText = 'Signal sent: Other sessions have been revoked.';
-            setTimeout(() => privacyModal.classList.remove('active'), 2000);
+            const user = auth.currentUser;
+            const sessionId = getStoredSessionId();
+            if (!user || !sessionId) {
+                statusEl.style.color = '#dc3545';
+                statusEl.innerText = 'No active session on this device.';
+                return;
+            }
+            try {
+                const response = await fetch('/api/revoke-other-sessions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: user.email, sessionId })
+                });
+                if (!response.ok) throw new Error('Request failed');
+                statusEl.style.color = '#27ae60';
+                statusEl.innerText = 'Other devices have been signed out. This device stays logged in.';
+                setTimeout(() => privacyModal.classList.remove('active'), 2000);
+            } catch {
+                statusEl.style.color = '#dc3545';
+                statusEl.innerText = 'Could not sign out other devices.';
+            }
         });
 
 document.getElementById('btnSignOut').addEventListener('click', () => {
-            showConfirmModal('exit', () => {
+            showConfirmModal('exit', async () => {
+                const email = auth.currentUser?.email;
+                const sessionId = getStoredSessionId();
+                if (email && sessionId) {
+                    await releaseSession(email);
+                    if (socket?.connected) socket.emit('user_logout', { email, sessionId });
+                }
                 signOut(auth).then(() => {
                     localStorage.removeItem('psa_admin_token');
                     localStorage.removeItem('psa_role');
+                    localStorage.removeItem('psa_session_id');
                     window.location.href = "/login.html";
                 });
             });

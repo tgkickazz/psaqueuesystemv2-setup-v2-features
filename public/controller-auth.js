@@ -1,5 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
 import { getAuth, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
+import { getStoredSessionId, startSessionGuard } from "./session-utils.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyBv0Bnx7ESj_roRTB137vWJ7KLTDXR1C8Y",
@@ -38,17 +39,6 @@ function renderUserInfo(elementId, email, role) {
     `;
 }
 
-function forceLogoutHandler(kickedEmail) {
-    const currentUser = auth.currentUser;
-    if (currentUser && currentUser.email === kickedEmail) {
-        alert("Session Terminated: You have been logged out by an Admin or logged in from another device.");
-        signOut(auth).then(() => {
-            localStorage.clear();
-            window.location.href = "/login.html";
-        });
-    }
-}
-
 export async function initControllerSession({ elementId, pageLocation, allowedRoles = ['controller', 'admin'], redirectUrl = '/login.html' }) {
     onAuthStateChanged(auth, async (user) => {
         if (!user) {
@@ -67,9 +57,13 @@ export async function initControllerSession({ elementId, pageLocation, allowedRo
         }
 
         renderUserInfo(elementId, user.email, role);
-        authSocket.emit('register_active_user', { email: user.email, role, location: pageLocation });
+        authSocket.emit('register_active_user', {
+            email: user.email,
+            role,
+            location: pageLocation,
+            sessionId: getStoredSessionId()
+        });
+        startSessionGuard(auth, authSocket);
     });
-
-    authSocket.on('force_logout_signal', forceLogoutHandler);
 }
 

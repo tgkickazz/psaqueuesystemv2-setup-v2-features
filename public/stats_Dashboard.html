@@ -4,6 +4,35 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Queue System Statistics</title>
+    <script>
+        (function () {
+            var mode = localStorage.getItem('psa_dark_mode');
+            if (mode === 'enabled' || mode === 'true' || mode === '1') {
+                document.documentElement.classList.add('dark-theme');
+            }
+        })();
+    </script>
+    <style id="dark-mode-guard">
+        html.dark-theme body {
+            background-color: #0b1220 !important;
+            color: #e2e8f0 !important;
+        }
+        html.dark-theme body::before {
+            content: "";
+            position: fixed;
+            inset: -30px;
+            background:
+                linear-gradient(135deg, rgba(2, 6, 23, 0.92), rgba(15, 23, 42, 0.92)),
+                url('./res/PSA-dark-bg.jpg') no-repeat center center fixed;
+            background-color: rgba(2, 6, 23, 0.92);
+            background-size: cover;
+            background-attachment: fixed;
+            background-position: center;
+            background-repeat: no-repeat;
+            filter: blur(15px);
+            z-index: -1;
+        }
+    </style>
     <link rel="icon" type="image/png" href="psa_logo.jpg">
     <link rel="stylesheet" href="dash.css" />
     <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet" />
@@ -667,6 +696,14 @@
     </style>
 </head>
 <body>
+    <script>
+        (function () {
+            var mode = localStorage.getItem('psa_dark_mode');
+            if (mode === 'enabled' || mode === 'true' || mode === '1') {
+                document.body.classList.add('dark-theme');
+            }
+        })();
+    </script>
     <div>
         <div class="home-dashboard-clock overlay-date-float" style=" position: absolute; top: 35px; right: 20px; text-align: right;">
             <div class="clock-display" id="realtime-clock">00:00:00 PM</div>
@@ -1225,6 +1262,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
         import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
+        import { getStoredSessionId, startSessionGuard } from "./session-utils.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBv0Bnx7ESj_roRTB137vWJ7KLTDXR1C8Y",
@@ -1240,16 +1278,18 @@
         const socket = io();
 
         const savedDarkMode = localStorage.getItem('psa_dark_mode');
-        if (savedDarkMode === 'enabled' || savedDarkMode === 'true' || savedDarkMode === '1') {
-            document.body.classList.add('dark-theme');
-        }
+        const isDarkMode = savedDarkMode === 'enabled' || savedDarkMode === 'true' || savedDarkMode === '1';
+        document.documentElement.classList.toggle('dark-theme', isDarkMode);
+        document.body.classList.toggle('dark-theme', isDarkMode);
 
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 socket.emit('register_active_user', {
                     email: user.email,
-                    location: 'Statistics Dashboard'
+                    location: 'Statistics Dashboard',
+                    sessionId: getStoredSessionId()
                 });
+                startSessionGuard(auth, socket);
 
                 const response = await fetch('/api/get-role', {
                     method: 'POST',

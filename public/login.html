@@ -57,7 +57,7 @@
             <div id="forgotStep1" class="modal-step active">
                 <h3>Forgot Password</h3>
                 <p>Enter your email address to receive a verification code.</p>
-                <input type="email" id="forgotEmail" class="modal-input" placeholder="Enter your email">
+                <input type="text" id="forgotEmail" class="modal-input" placeholder="Email" autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false">
                 <div id="forgotStep1Status" class="modal-status"></div>
                 <div class="modal-buttons">         
                     <button id="btnSendCode" class="modal-btn primary">Send Code</button>
@@ -108,18 +108,19 @@
             <div class="login-card">
                 <div id="loginForm">
                     <h2>Login</h2>
-                    <div class="input-group"><input type="email" id="loginEmail" required placeholder="Username (Email)"></div>
-                    <div class="input-group"><input type="password" id="loginPass" required placeholder="Password"></div>
-            
-                    <a href="#" id="linkForgot" class="forgot-link">Forgot Password?</a>
-                    <button id="btnLogin" class="btn-login">Login</button>
+                    <form id="loginFormSubmit" novalidate>
+                        <div class="input-group"><input type="text" id="loginEmail" required placeholder="Email" autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false"></div>
+                        <div class="input-group"><input type="password" id="loginPass" required placeholder="Password" autocomplete="current-password"></div>
+                        <a href="#" id="linkForgot" class="forgot-link">Forgot Password?</a>
+                        <button type="button" id="btnLogin" class="btn-login">Login</button>
+                    </form>
                     <div id="loginStatus" class="status-msg"></div>
                     <div class="toggle-text"><a id="linkToSignup">System Registration</a></div>
                 </div>
                 
                 <div id="signupForm">
                     <h2>Register</h2>
-                    <div class="input-group"><input type="email" id="signEmail" required placeholder="Email Address"></div>
+                    <div class="input-group"><input type="text" id="signEmail" required placeholder="Email" autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false"></div>
                     <div class="input-group"><input type="password" id="signPass" required placeholder="Password (Min 8 chars, 1 uppercase, 1 number, 1 special)"></div>
                     <div class="input-group">
                         <select id="signRole" required>
@@ -162,6 +163,11 @@
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
+
+        function isValidEmail(email) {
+            // Allow multi-part domains (e.g. name@psa.gov.ph)
+            return /^[^\s@]+@([^\s@]+\.)+[^\s@]+$/.test(String(email).trim());
+        }
 
         function validatePassword(password) {
             if (password.length < 8) return "Password must be at least 8 characters long.";
@@ -213,6 +219,7 @@
             const status = document.getElementById('signupStatus');
             
             if (!email || !pass) return status.innerText = "Please fill in all fields.";
+            if (!isValidEmail(email)) return status.innerText = "Please enter a valid email address.";
 
             const passError = validatePassword(pass);
             if (passError) return status.innerText = passError;
@@ -269,8 +276,9 @@
             const status = document.getElementById('signupStatus');
             status.innerText = "Creating account...";
             
-            createUserWithEmailAndPassword(auth, email, pass).then(async () => {
-                await fetch('/api/set-role', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, role }) });
+            createUserWithEmailAndPassword(auth, email, pass).then(async (cred) => {
+                const registeredEmail = cred.user.email || email;
+                await fetch('/api/set-role', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: registeredEmail, role }) });
                 await logAuthActivity('NEW_REGISTRATION', email);
                 
                 alert(`${role.toUpperCase()} account created successfully! You can now log in.`);
@@ -282,34 +290,120 @@
             }).catch((error) => status.innerText = error.message.replace("Firebase: ", ""));
         }
 
-        document.getElementById('btnLogin').addEventListener('click', () => {
-            const email = document.getElementById('loginEmail').value;
+        function normalizeEmailForSession(value) {
+            return String(value || '').trim().toLowerCase();
+        }
+
+        async function checkHasActiveSession(email) {
+            try {
+                const response = await fetch('/api/session-status', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: normalizeEmailForSession(email) })
+                });
+                if (!response.ok) return false;
+                const data = await response.json();
+                return !!data.hasActiveSession;
+            } catch {
+                return false;
+            }
+        }
+
+        async function claimSessionForUser(email) {
+            const sessionId = crypto.randomUUID();
+            localStorage.setItem('psa_session_id', sessionId);
+            const response = await fetch('/api/claim-session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: normalizeEmailForSession(email), sessionId })
+            });
+            if (!response.ok) throw new Error('Could not start secure session');
+            return response.json();
+        }
+
+        async function attemptLogin() {
+            const email = document.getElementById('loginEmail').value.trim();
             const pass = document.getElementById('loginPass').value;
             const status = document.getElementById('loginStatus');
+            const btnLogin = document.getElementById('btnLogin');
             if (!email || !pass) return status.innerText = "Please fill in all fields.";
+            if (!isValidEmail(email)) return status.innerText = "Please enter a valid email address.";
 
-            signInWithEmailAndPassword(auth, email, pass).then(async (userCredential) => {
+            btnLogin.disabled = true;
+            status.innerText = '';
+            try {
+                const hasOtherSession = await checkHasActiveSession(email);
+                if (hasOtherSession) {
+                    const proceed = confirm(
+                        'This account is already signed in on another device.\n\n' +
+                        'Continue? The other device will be signed out.'
+                    );
+                    if (!proceed) {
+                        status.innerText = 'Login cancelled.';
+                        return;
+                    }
+                }
+
+                const userCredential = await signInWithEmailAndPassword(auth, email, pass);
                 const userEmail = userCredential.user.email;
                 const response = await fetch('/api/get-role', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: userEmail }) });
+                if (!response.ok) {
+                    await signOut(auth);
+                    status.innerText = "Cannot reach server. Start the app (node server.js) and try again.";
+                    return;
+                }
                 const data = await response.json();
 
                 if (data.role === 'banned') {
-                    signOut(auth);
-                    return status.innerText = "This account has been removed by an Admin.";
+                    await signOut(auth);
+                    status.innerText = "This account has been removed by an Admin.";
+                    return;
                 }
 
+                await claimSessionForUser(userEmail);
                 await logAuthActivity('USER_LOGIN', userEmail);
 
                 localStorage.setItem('psa_admin_token', userEmail);
-                localStorage.setItem('psa_role', data.role);
-                const targetUrl = data.role === 'admin' ? "admin_dashboard.html" : "queue-control.html";
-    const transitionLink = document.createElement('a');
-    transitionLink.href = targetUrl;
-    document.body.appendChild(transitionLink);
-    transitionLink.click(); 
-    
-}).catch(() => status.innerText = "Invalid email or password.");
+                localStorage.setItem('psa_role', data.role || 'controller');
+
+                if (data.role === 'admin') {
+                    window.location.href = 'admin_dashboard.html';
+                } else {
+                    window.location.href = 'queue-control.html';
+                }
+            } catch {
+                status.innerText = "Invalid email or password.";
+            } finally {
+                btnLogin.disabled = false;
+            }
+        }
+
+        document.getElementById('loginFormSubmit').addEventListener('submit', (e) => e.preventDefault());
+
+        document.getElementById('loginEmail').addEventListener('keydown', (e) => {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value.trim();
+            const status = document.getElementById('loginStatus');
+            if (!email) {
+                status.innerText = "Please enter your email.";
+                return;
+            }
+            if (!isValidEmail(email)) {
+                status.innerText = "Please enter a valid email address.";
+                return;
+            }
+            status.innerText = '';
+            document.getElementById('loginPass').focus();
         });
+
+        document.getElementById('loginPass').addEventListener('keydown', (e) => {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            attemptLogin();
+        });
+
+        document.getElementById('btnLogin').addEventListener('click', () => attemptLogin());
  
         // All code below is NEW and handles the 4-step password reset flow
 
@@ -387,6 +481,7 @@
             const status = document.getElementById('forgotStep1Status');
 
             if (!email) return status.innerText = "Please enter your email.";
+            if (!isValidEmail(email)) return status.innerText = "Please enter a valid email address.";
 
             status.innerText = "Sending code...";
             try {
