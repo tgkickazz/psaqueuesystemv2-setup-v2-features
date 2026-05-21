@@ -26,3 +26,6 @@ Thumbs.db
 
 # One-time helper (optional; do not commit)
 cleanup-repo-and-push.ps1
+
+# Accidental nested duplicate of this same project folder
+psaqueuesystemv2-setup-v2-features/
