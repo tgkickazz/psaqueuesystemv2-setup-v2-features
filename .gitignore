@@ -1,8 +1,4 @@
-# Dependencies
-node_modules/
-
-# Logs and local data
-log/
+# Logs (optional — log/ folder is tracked for full project backup)
 *.log
 npm-debug.log*
 
